@@ -55,9 +55,7 @@ h2 {text-align:center;margin-bottom:15px;}
 
   <div id="mainContent">
     <input id="search" type="text" placeholder="🔍 Search...">
-
     <div id="playlist"></div>
-
     <div class="controls">
       <button class="btn" onclick="prevAudio()">⏮️</button>
       <button class="btn" id="playPauseBtn" onclick="togglePlay()">▶️</button>
@@ -95,7 +93,7 @@ function noAccent(str){
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D").toLowerCase();
 }
 
-// 🔹 Render playlist (luôn hiển thị tất cả, search chỉ highlight)
+// 🔹 Render playlist (luôn hiển thị, search chỉ highlight)
 function renderPlaylist(filter){
   playlistDiv.innerHTML="";
   playlist.forEach((song,i)=>{
@@ -132,8 +130,6 @@ function togglePlay(){
   if(audio.paused){ audio.play(); updatePlayButton(); }
   else{ audio.pause(); updatePlayButton(); }
 }
-function playAudio(){ audio.play(); updatePlayButton();}
-function pauseAudio(){ audio.pause(); updatePlayButton();}
 function nextAudio(){ index=(index+1)%playlist.length; loadSong(index);}
 function prevAudio(){ index=(index-1+playlist.length)%playlist.length; loadSong(index);}
 audio.addEventListener("ended", nextAudio);
@@ -156,8 +152,16 @@ function toggleMenu(){
   const menu=document.getElementById("menuContent");
   menu.style.display=menu.style.display==="flex"?"none":"flex";
 }
-function showMain(){ document.getElementById("mainContent").style.display="block"; document.getElementById("historyContent").style.display="none"; renderPlaylist(searchBox.value);}
-function showHistory(){ document.getElementById("mainContent").style.display="none"; document.getElementById("historyContent").style.display="block"; renderHistory(); }
+function showMain(){ 
+  document.getElementById("mainContent").style.display="block"; 
+  document.getElementById("historyContent").style.display="none"; 
+  renderPlaylist(searchBox.value);
+}
+function showHistory(){ 
+  document.getElementById("mainContent").style.display="none"; 
+  document.getElementById("historyContent").style.display="block"; 
+  renderHistory();
+}
 
 // 🔹 History
 function saveHistory(i,time){
@@ -193,10 +197,13 @@ function formatTime(t){
 // 🔹 Load lần cuối
 let lastIndex=localStorage.getItem("lastIndex");
 let lastTime=localStorage.getItem("lastTime");
-if(lastIndex!==null){ index=parseInt(lastIndex); loadSong(index); audio.currentTime=lastTime?parseFloat(lastTime):0; } 
-else loadSong(0);
+if(lastIndex!==null){ 
+  index=parseInt(lastIndex); 
+  loadSong(index); 
+  audio.currentTime=lastTime?parseFloat(lastTime):0; 
+} else loadSong(0);
 
-// 🔹 Lưu thời gian liên tục
+// 🔹 Lưu thời gian và history liên tục mỗi 2s
 setInterval(()=>{ 
   saveHistory(index,audio.currentTime); 
   localStorage.setItem("lastIndex",index); 
