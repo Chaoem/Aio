@@ -3,273 +3,77 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Advanced Catbox Player</title>
+<title>Mini Audio Web</title>
 <style>
 body {
-  margin:0;
   font-family: Arial, sans-serif;
-  background:#121212;
-  color:white;
-  display:flex;
-  justify-content:center;
-  padding:10px;
+  background: #1e1e1e;
+  color: #fff;
+  text-align: center;
+  padding: 20px;
 }
-.container {
-  width:95%;
-  max-width:450px;
-  background:#1e1e1e;
-  border-radius:16px;
-  padding:20px;
-  box-shadow:0 0 15px rgba(255,255,255,0.1);
-  position:relative;
+input, button {
+  font-size: 16px;
+  padding: 10px;
+  margin: 10px 0;
+  width: 90%;
+  max-width: 400px;
+  border-radius: 8px;
+  border: none;
 }
-h2 {text-align:center;margin-bottom:15px;}
-#search {width:100%;padding:12px;border-radius:10px;border:none;font-size:16px;background:#2b2b2b;color:white;margin-bottom:10px;}
-.song, .suggested-song {padding:12px;margin-bottom:5px;background:#2b2b2b;border-radius:10px;cursor:pointer;transition:0.2s;}
-.song:hover, .suggested-song:hover {background:#3a3a3a;}
-.active {border-left:4px solid #ff5722;}
-.controls {display:flex;justify-content:space-around;margin-top:15px;margin-bottom:15px;}
-.btn {padding:10px 20px;background:#ff5722;color:white;border:none;border-radius:10px;cursor:pointer;font-size:18px;}
-.btn:hover {background:#ff784e;}
-.menu-btn {position:absolute;top:20px;right:20px;width:30px;height:25px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;}
-.menu-btn div {height:4px;background:white;border-radius:2px;}
-.menu-content {position:absolute;top:50px;right:20px;background:#2b2b2b;padding:10px;border-radius:10px;display:none;flex-direction:column;min-width:120px;}
-.menu-content div {padding:10px;cursor:pointer;border-bottom:1px solid #444;}
-.menu-content div:last-child{border:none;}
-.menu-content div:hover{background:#3a3a3a;}
-.suggested {margin-top:15px;}
-.suggested h3 {margin-bottom:10px;}
-#playlist, #suggestedList {max-height:200px; overflow-y:auto; margin-bottom:10px;}
+button { background: #ff5722; color: #fff; cursor: pointer; }
+button:hover { background: #ff784e; }
+audio { width: 100%; margin-top: 20px; }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <h2>🎵 Advanced Catbox Player</h2>
+<h2>Mini Audio Web</h2>
 
-  <!-- Hamburger -->
-  <div class="menu-btn" onclick="toggleMenu()">
-    <div></div><div></div><div></div>
-  </div>
-  <div class="menu-content" id="menuContent">
-    <div onclick="showMain()">Main</div>
-    <div onclick="showHistory()">History</div>
-  </div>
+<input type="text" id="audioUrl" placeholder="Nhập link audio trực tiếp (MP3 / Catbox / direct)" />
+<br>
+<button id="playBtn">▶️ Play</button>
+<button id="pauseBtn">⏸️ Pause</button>
 
-  <div id="mainContent">
-    <input id="search" type="text" placeholder="🔍 Search...">
-    <div id="playlist"></div>
+<p id="historyText">History: Chưa có</p>
 
-    <div class="controls">
-      <button class="btn" onclick="prevAudio()">⏮️</button>
-      <button class="btn" id="playPauseBtn" onclick="togglePlay()">▶️</button>
-      <button class="btn" onclick="nextAudio()">⏭️</button>
-    </div>
-
-    <div class="suggested">
-      <h3>Suggested</h3>
-      <div id="suggestedList"></div>
-    </div>
-  </div>
-
-  <div id="historyContent" style="display:none;">
-    <h3>Lịch sử nghe</h3>
-    <ul id="historyList"></ul>
-  </div>
-
-  <audio id="player"></audio>
-</div>
+<audio id="player" controls></audio>
 
 <script>
-// 🔹 Playlist
-let playlist = [
-  { title: "Cáo Réo", url: "https://files.catbox.moe/n4hdcs.mp3" },
-  { title: "Nhạc Chill", url: "https://files.catbox.moe/xxxxx.mp3" },
-  { title: "Remix Căng", url: "https://files.catbox.moe/yyyyy.mp3" },
-  { title: "Nhạc Lofi", url: "https://files.catbox.moe/aaaaa.mp3" },
-  { title: "Nhạc Vui", url: "https://files.catbox.moe/bbbbb.mp3" }
-];
+// Lấy history từ localStorage
+const historyText = document.getElementById("historyText");
+const player = document.getElementById("player");
+const playBtn = document.getElementById("playBtn");
+const pauseBtn = document.getElementById("pauseBtn");
+const audioUrlInput = document.getElementById("audioUrl");
 
-const audio = document.getElementById("player");
-const playlistDiv = document.getElementById("playlist");
-const suggestedDiv = document.getElementById("suggestedList");
-const searchBox = document.getElementById("search");
-const historyList = document.getElementById("historyList");
-const playPauseBtn = document.getElementById("playPauseBtn");
+let lastUrl = localStorage.getItem("lastUrl") || "";
+let lastTime = parseFloat(localStorage.getItem("lastTime")) || 0;
 
-let index = 0;
-let history = JSON.parse(localStorage.getItem("history")) || [];
-
-// 🔹 Hàm bỏ dấu
-function noAccent(str){
-  return str.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D").toLowerCase();
+if(lastUrl){
+    player.src = lastUrl;
+    player.currentTime = lastTime;
+    historyText.textContent = "History: " + lastUrl;
 }
 
-function renderPlaylist(filter){
-  playlistDiv.innerHTML = "";
-  const searchTerm = filter.trim();
-  
-  if(searchTerm === ""){
-    // search rỗng → không hiển thị kết quả
-    return;
-  }
-
-  // search → chỉ show bài trùng
-  let found = 0;
-  playlist.forEach((song,i)=>{
-    if(noAccent(song.title).includes(noAccent(searchTerm))){
-      const div = document.createElement("div");
-      div.className = "song" + (i===index?" active":"");
-      div.textContent = song.title;
-      div.onclick=()=>{ index=i; loadSong(i); };
-      playlistDiv.appendChild(div);
-      found++;
+playBtn.addEventListener("click", ()=>{
+    const url = audioUrlInput.value.trim();
+    if(url){
+        player.src = url;
+        player.play();
+        historyText.textContent = "History: " + url;
+        localStorage.setItem("lastUrl", url);
     }
-  });
+});
 
-  if(found===0){
-    const div = document.createElement("div");
-    div.style.textAlign="center";
-    div.style.padding="10px";
-    div.style.color="#ccc";
-    div.textContent="Không tìm thấy kết quả";
-    playlistDiv.appendChild(div);
-  }
-}
+pauseBtn.addEventListener("click", ()=>{
+    player.pause();
+});
 
-// 🔹 Render suggested ngẫu nhiên
-function renderSuggested(){
-  suggestedDiv.innerHTML="";
-  let usedIndexes = [];
-  const count = Math.min(3, playlist.length);
-  while(usedIndexes.length < count){
-    let i = Math.floor(Math.random()*playlist.length);
-    if(!usedIndexes.includes(i)) usedIndexes.push(i);
-  }
-  usedIndexes.forEach(i=>{
-    const div = document.createElement("div");
-    div.className="suggested-song";
-    div.textContent = playlist[i].title;
-    div.onclick = ()=>{
-      audio.src = playlist[i].url;
-      audio.currentTime = 0;
-      audio.play();
-      updatePlayButton();
-    };
-    suggestedDiv.appendChild(div);
-  });
-}
-
-// 🔹 Load bài
-function loadSong(i){
-  audio.src = playlist[i].url;
-  audio.currentTime=0;
-  audio.play();
-  updatePlayButton();
-  highlight();
-  saveHistory(i,audio.currentTime);
-}
-
-// 🔹 Controls
-function togglePlay(){
-  if(audio.paused){ audio.play(); updatePlayButton(); }
-  else{ audio.pause(); updatePlayButton(); }
-}
-function nextAudio(){ index=(index+1)%playlist.length; loadSong(index);}
-function prevAudio(){ index=(index-1+playlist.length)%playlist.length; loadSong(index);}
-audio.addEventListener("ended", nextAudio);
-
-// 🔹 Highlight
-function highlight(){
-  document.querySelectorAll(".song").forEach((e,i)=>{e.classList.toggle("active",i===index);});
-}
-
-// 🔹 Update nút play/pause
-function updatePlayButton(){
-  playPauseBtn.textContent = audio.paused ? "▶️" : "⏸️";
-}
-
-// 🔹 Search
-searchBox.addEventListener("input",()=>{ renderPlaylist(searchBox.value); });
-
-// 🔹 Menu
-function toggleMenu(){
-  const menu=document.getElementById("menuContent");
-  menu.style.display=menu.style.display==="flex"?"none":"flex";
-}
-function showMain(){ 
-  document.getElementById("mainContent").style.display="block"; 
-  document.getElementById("historyContent").style.display="none"; 
-  renderPlaylist(searchBox.value);
-  renderSuggested();
-}
-function showHistory(){ 
-  document.getElementById("mainContent").style.display="none"; 
-  document.getElementById("historyContent").style.display="block"; 
-  renderHistory();
-}
-
-// 🔹 History
-function saveHistory(i,time){
-  const song=playlist[i];
-  const exists=history.find(h=>h.url===song.url);
-  if(exists){ exists.time=time; }
-  else{ history.unshift({title:song.title,url:song.url,time:time}); if(history.length>50) history.pop(); }
-  localStorage.setItem("history",JSON.stringify(history));
-}
-
-// 🔹 Render history
-function renderHistory(){
-  historyList.innerHTML="";
-  history.forEach((h)=>{
-    const li=document.createElement("li");
-    li.textContent=`${h.title} - ${formatTime(h.time||0)}`;
-    li.style.cursor="pointer";
-    li.onclick=()=>{
-      const idx=playlist.findIndex(p=>p.url===h.url);
-      if(idx!==-1){
-        index=idx;
-        audio.src = playlist[index].url;
-        audio.currentTime = h.time || 0;
-        audio.play();
-        updatePlayButton();
-        highlight();
-        showMain();
-      }
-    };
-    historyList.appendChild(li);
-  });
-}
-
-// 🔹 Format time
-function formatTime(t){
-  const min=Math.floor(t/60);
-  const sec=Math.floor(t%60);
-  return `${min}:${sec<10?"0"+sec:sec}`;
-}
-
-// 🔹 Load lần cuối
-let lastIndex=localStorage.getItem("lastIndex");
-let lastTime=localStorage.getItem("lastTime");
-if(lastIndex!==null){ 
-  index=parseInt(lastIndex); 
-  audio.src = playlist[index].url;
-  audio.currentTime = lastTime ? parseFloat(lastTime) : 0;
-  audio.play();
-  updatePlayButton();
-  highlight();
-} else loadSong(0);
-
-// 🔹 Lưu thời gian và history liên tục mỗi 2s
-setInterval(()=>{ 
-  saveHistory(index,audio.currentTime); 
-  localStorage.setItem("lastIndex",index); 
-  localStorage.setItem("lastTime",audio.currentTime); 
-},2000);
-
-// 🔹 Init suggested + playlist
-renderSuggested();
-renderPlaylist("");
+// Cập nhật thời gian nghe
+player.addEventListener("timeupdate", ()=>{
+    localStorage.setItem("lastTime", player.currentTime);
+});
 </script>
 
 </body>
