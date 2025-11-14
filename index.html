@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mini Audio Web</title>
+<title>YouTube Audio Player</title>
 <style>
 body {
   font-family: Arial, sans-serif;
@@ -23,58 +23,81 @@ input, button {
 }
 button { background: #ff5722; color: #fff; cursor: pointer; }
 button:hover { background: #ff784e; }
-audio { width: 100%; margin-top: 20px; }
+#player { width:0; height:0; }
 </style>
 </head>
 <body>
 
-<h2>Mini Audio Web</h2>
+<h2>YouTube Audio Player</h2>
 
-<input type="text" id="audioUrl" placeholder="Nhập link audio trực tiếp (MP3 / Catbox / direct)" />
+<input type="text" id="ytLink" placeholder="Nhập link YouTube hoặc Video ID" />
 <br>
 <button id="playBtn">▶️ Play</button>
 <button id="pauseBtn">⏸️ Pause</button>
-
 <p id="historyText">History: Chưa có</p>
 
-<audio id="player" controls></audio>
+<div id="player"></div>
 
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>
-// Lấy history từ localStorage
-const historyText = document.getElementById("historyText");
-const player = document.getElementById("player");
-const playBtn = document.getElementById("playBtn");
-const pauseBtn = document.getElementById("pauseBtn");
-const audioUrlInput = document.getElementById("audioUrl");
+let player;
+let currentVideoId = "";
+const historyKey = "ytAudioHistory";
 
-let lastUrl = localStorage.getItem("lastUrl") || "";
-let lastTime = parseFloat(localStorage.getItem("lastTime")) || 0;
-
-if(lastUrl){
-    player.src = lastUrl;
-    player.currentTime = lastTime;
-    historyText.textContent = "History: " + lastUrl;
+function extractVideoID(url) {
+  // Nếu là link YouTube
+  const reg = /(?:v=|\/)([0-9A-Za-z_-]{11})/;
+  const match = url.match(reg);
+  if(match) return match[1];
+  // Nếu là ID trực tiếp
+  if(url.length===11) return url;
+  return null;
 }
 
-playBtn.addEventListener("click", ()=>{
-    const url = audioUrlInput.value.trim();
-    if(url){
-        player.src = url;
-        player.play();
-        historyText.textContent = "History: " + url;
-        localStorage.setItem("lastUrl", url);
+// Load history
+const saved = JSON.parse(localStorage.getItem(historyKey) || "{}");
+if(saved.videoId) currentVideoId = saved.videoId;
+
+function onYouTubeIframeAPIReady() {
+  if(!currentVideoId) return;
+  player = new YT.Player('player',{
+    height:'0', width:'0', videoId: currentVideoId,
+    events: {
+      'onReady':()=>{},
+      'onStateChange':onPlayerStateChange
     }
+  });
+  document.getElementById("historyText").textContent = "History: " + currentVideoId;
+}
+
+function onPlayerStateChange(event){
+  // Có thể thêm lưu thời gian
+}
+
+document.getElementById("playBtn").addEventListener("click", ()=>{
+  const input = document.getElementById("ytLink").value.trim();
+  const videoId = extractVideoID(input);
+  if(!videoId){ alert("Link không hợp lệ!"); return; }
+  currentVideoId = videoId;
+
+  if(player){
+    player.loadVideoById(videoId);
+  } else {
+    player = new YT.Player('player',{
+      height:'0', width:'0', videoId: videoId,
+      events: { 'onReady':()=>player.playVideo(), 'onStateChange':onPlayerStateChange }
+    });
+  }
+
+  localStorage.setItem(historyKey, JSON.stringify({videoId}));
+  document.getElementById("historyText").textContent = "History: " + videoId;
 });
 
-pauseBtn.addEventListener("click", ()=>{
-    player.pause();
-});
-
-// Cập nhật thời gian nghe
-player.addEventListener("timeupdate", ()=>{
-    localStorage.setItem("lastTime", player.currentTime);
+document.getElementById("pauseBtn").addEventListener("click", ()=>{
+  if(player) player.pauseVideo();
 });
 </script>
 
 </body>
 </html>
+
