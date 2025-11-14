@@ -1,132 +1,182 @@
 <!doctype html>
-<html lang="vi">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mobile YouTube Audio Player</title>
-<style>
+<html lang="vi"> 
+ <head> 
+  <meta charset="UTF-8"> 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+  <title>Audio Test</title> 
+  <style>
 body {
-  font-family: Arial;
-  background: #111;
-  color: #fff;
-  text-align: center;
-  padding: 30px;
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#121212;
+  color:white;
+  display:flex;
+  justify-content:center;
+  padding:10px;
 }
-h1 { margin-bottom: 20px; }
-select, button {
-  font-size: 18px;
-  padding: 10px;
-  margin: 5px 0;
-  width: 80%;
-  max-width: 300px;
-  border-radius: 8px;
-  border: none;
+.container {
+  width:95%;
+  max-width:450px;
+  background:#1e1e1e;
+  border-radius:16px;
+  padding:20px;
+  box-shadow:0 0 15px rgba(255,255,255,0.1);
+  position:relative;
 }
-select { background: #333; color: #fff; }
-button { background: #ff5722; color: #fff; cursor: pointer; }
-button:hover { background: #ff784e; }
-#player { width:0; height:0; } /* Ẩn video */
-</style>
-</head>
-<body>
-
-<h1>Mobile YouTube Audio Player</h1>
-
-<select id="playlist"></select>
-
-<div>
-  <button id="prevBtn">⏮️ Previous</button>
-  <button id="playBtn">▶️ Play</button>
-  <button id="pauseBtn">⏸️ Pause</button>
-  <button id="nextBtn">⏭️ Next</button>
-</div>
-
-<div id="player"></div>
-
-<script src="https://www.youtube.com/iframe_api"></script>
-<script>
-let player;
-let currentIndex = 0;
-let isReady = false;
-
-// Thêm video YouTube vào đây, dạng: {id: "VIDEO_ID", title: "Tên bài"}
-const playlist = [
-  {id: "FndiPlm3Iuo", title: "Cô Revisit"},
-  {id: "dQw4w9WgXcQ", title: "Never Gonna Give You Up"},
-  {id: "oHg5SJYRHA0", title: "Sample Song 3"}
+h2 {text-align:center;margin-bottom:15px;}
+#search {width:100%;padding:12px;border-radius:10px;border:none;font-size:16px;background:#2b2b2b;color:white;margin-bottom:15px;}
+.song {padding:12px;margin-bottom:5px;background:#2b2b2b;border-radius:10px;cursor:pointer;transition:0.2s;}
+.song:hover {background:#3a3a3a;}
+.active {background:#ff5722 !important;}
+.controls {display:flex;justify-content:space-around;margin-top:15px;}
+.btn {padding:10px 20px;background:#ff5722;color:white;border:none;border-radius:10px;cursor:pointer;font-size:18px;}
+.btn:hover {background:#ff784e;}
+/* Hamburger */
+.menu-btn {position:absolute;top:20px;right:20px;width:30px;height:25px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;}
+.menu-btn div {height:4px;background:white;border-radius:2px;}
+.menu-content {position:absolute;top:50px;right:20px;background:#2b2b2b;padding:10px;border-radius:10px;display:none;flex-direction:column;min-width:120px;}
+.menu-content div {padding:10px;cursor:pointer;border-bottom:1px solid #444;}
+.menu-content div:last-child{border:none;}
+.menu-content div:hover{background:#3a3a3a;}
+</style> 
+ </head> 
+ <body> 
+  <div class="container"> 
+   <h2>🎵 Advanced Catbox Player</h2> <!-- Hamburger --> 
+   <div class="menu-btn" onclick="toggleMenu()"> 
+    <div></div>
+    <div></div>
+    <div></div> 
+   </div> 
+   <div class="menu-content" id="menuContent"> 
+    <div onclick="showMain()">
+     Main
+    </div> 
+    <div onclick="showHistory()">
+     History
+    </div> 
+   </div> 
+   <div id="mainContent"> 
+    <input id="search" type="text" placeholder="🔍 Search..."> 
+    <div id="playlist"></div> 
+    <div class="controls"> <button class="btn" onclick="prevAudio()">⏮️</button> <button class="btn" onclick="playAudio()">▶️</button> <button class="btn" onclick="pauseAudio()">⏸️</button> <button class="btn" onclick="nextAudio()">⏭️</button> 
+    </div> 
+   </div> 
+   <div id="historyContent" style="display:none;"> 
+    <h3>Lịch sử nghe</h3> 
+    <ul id="historyList"></ul> 
+   </div> 
+   <audio id="player"></audio> 
+  </div> 
+  <script>
+// 🔹 Playlist
+let playlist = [
+  { title: "Cáo Réo", url: "https://files.catbox.moe/n4hdcs.mp3" },
+  { title: "Nhạc Chill", url: "https://files.catbox.moe/xxxxx.mp3" },
+  { title: "Remix Căng", url: "https://files.catbox.moe/yyyyy.mp3" }
 ];
 
-// Tạo dropdown playlist
-const select = document.getElementById("playlist");
-playlist.forEach((video, index) => {
-  const option = document.createElement("option");
-  option.value = index;
-  option.text = video.title;
-  select.add(option);
-});
+const audio = document.getElementById("player");
+const playlistDiv = document.getElementById("playlist");
+const searchBox = document.getElementById("search");
+const historyList = document.getElementById("historyList");
 
-// YouTube API
-function onYouTubeIframeAPIReady() {
-  player = new YT.Player('player', {
-    height: '0',
-    width: '0',
-    videoId: playlist[currentIndex].id,
-    events: {
-      'onReady': onPlayerReady,
-      'onStateChange': onPlayerStateChange
-    }
+let index = 0;
+let history = JSON.parse(localStorage.getItem("history")) || [];
+
+// 🔹 Hàm bỏ dấu tiếng Việt
+function noAccent(str){
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D").toLowerCase();
+}
+
+// 🔹 Render playlist
+function renderPlaylist(filter){
+  playlistDiv.innerHTML="";
+  playlist.filter(song => noAccent(song.title).includes(noAccent(filter))).forEach((song,i)=>{
+    const div=document.createElement("div");
+    div.className="song"+(i===index?" active":"");
+    div.textContent=song.title;
+    div.onclick=()=>{
+      index=i;
+      loadSong(i);
+    };
+    playlistDiv.appendChild(div);
   });
 }
 
-function onPlayerReady(event) {
-  isReady = true;
-  document.getElementById("playBtn").disabled = false;
+// 🔹 Load song
+function loadSong(i){
+  audio.src=playlist[i].url;
+  audio.play();
+  highlight();
+  saveHistory(i,audio.currentTime);
 }
 
-function onPlayerStateChange(event) {
-  if(event.data === YT.PlayerState.ENDED) nextAudio();
+function playAudio(){ audio.play(); }
+function pauseAudio(){ audio.pause(); }
+function nextAudio(){ index=(index+1)%playlist.length; loadSong(index);}
+function prevAudio(){ index=(index-1+playlist.length)%playlist.length; loadSong(index);}
+audio.addEventListener("ended", nextAudio);
+
+// 🔹 Highlight bài đang phát
+function highlight(){
+  document.querySelectorAll(".song").forEach((e,i)=>{e.classList.toggle("active",i===index);});
 }
 
-// Buttons
-const playBtn = document.getElementById("playBtn");
-const pauseBtn = document.getElementById("pauseBtn");
-const nextBtn = document.getElementById("nextBtn");
-const prevBtn = document.getElementById("prevBtn");
+// 🔹 Search
+searchBox.addEventListener("input",()=>{ renderPlaylist(searchBox.value); });
 
-// Disable Play trước khi player sẵn sàng
-playBtn.disabled = true;
+// 🔹 Menu
+function toggleMenu(){
+  const menu=document.getElementById("menuContent");
+  menu.style.display=menu.style.display==="flex"?"none":"flex";
+}
+function showMain(){ document.getElementById("mainContent").style.display="block"; document.getElementById("historyContent").style.display="none"; }
+function showHistory(){ document.getElementById("mainContent").style.display="none"; document.getElementById("historyContent").style.display="block"; renderHistory(); }
 
-playBtn.onclick = () => { if(isReady) player.playVideo(); }
-pauseBtn.onclick = () => { if(isReady) player.pauseVideo(); }
-nextBtn.onclick = () => nextAudio();
-prevBtn.onclick = () => prevAudio();
+// 🔹 History
+function saveHistory(i,time){
+  const song=playlist[i];
+  const exists=history.find(h=>h.url===song.url);
+  if(exists){
+    exists.time=time;
+  } else {
+    history.unshift({title:song.title,url:song.url,time:time});
+    if(history.length>50) history.pop();
+  }
+  localStorage.setItem("history",JSON.stringify(history));
+}
 
-select.addEventListener("change", function() {
-  currentIndex = parseInt(this.value);
-  loadVideo();
+function renderHistory(){
+  historyList.innerHTML="";
+  history.forEach((h)=>{
+    const li=document.createElement("li");
+    li.textContent=`${h.title} - ${formatTime(h.time)}`;
+    li.style.cursor="pointer";
+    li.onclick=()=>{
+      const idx=playlist.findIndex(p=>p.url===h.url);
+      if(idx!==-1){ index=idx; loadSong(index); audio.currentTime=h.time; showMain(); }
+    };
+    historyList.appendChild(li);
+  });
+}
+
+function formatTime(t){
+  const min=Math.floor(t/60);
+  const sec=Math.floor(t%60);
+  return `${min}:${sec<10?"0"+sec:sec}`;
+}
+
+// 🔹 Load lần cuối
+let lastIndex=localStorage.getItem("lastIndex");
+let lastTime=localStorage.getItem("lastTime");
+if(lastIndex!==null){ index=parseInt(lastIndex); loadSong(index); audio.currentTime=lastTime?parseFloat(lastTime):0; } 
+else loadSong(0);
+
+window.addEventListener("beforeunload",()=>{
+  localStorage.setItem("lastIndex",index);
+  localStorage.setItem("lastTime",audio.currentTime);
 });
-
-// Load video
-function loadVideo() {
-  if(!isReady) return;
-  player.loadVideoById(playlist[currentIndex].id);
-}
-
-// Next / Previous
-function nextAudio() {
-  if(!isReady) return;
-  currentIndex = (currentIndex + 1) % playlist.length;
-  select.selectedIndex = currentIndex;
-  loadVideo();
-}
-
-function prevAudio() {
-  if(!isReady) return;
-  currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
-  select.selectedIndex = currentIndex;
-  loadVideo();
-}
-</script>
-
-
-</body></html>
+</script> 
+ </body>
+</html>
