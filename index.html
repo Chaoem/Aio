@@ -24,11 +24,11 @@ body {
   position:relative;
 }
 h2 {text-align:center;margin-bottom:15px;}
-#search {width:100%;padding:12px;border-radius:10px;border:none;font-size:16px;background:#2b2b2b;color:white;margin-bottom:15px;}
-.song {padding:12px;margin-bottom:5px;background:#2b2b2b;border-radius:10px;cursor:pointer;transition:0.2s;}
-.song:hover {background:#3a3a3a;}
+#search {width:100%;padding:12px;border-radius:10px;border:none;font-size:16px;background:#2b2b2b;color:white;margin-bottom:10px;}
+.song, .suggested-song {padding:12px;margin-bottom:5px;background:#2b2b2b;border-radius:10px;cursor:pointer;transition:0.2s;}
+.song:hover, .suggested-song:hover {background:#3a3a3a;}
 .active {border-left:4px solid #ff5722;}
-.controls {display:flex;justify-content:space-around;margin-top:15px;}
+.controls {display:flex;justify-content:space-around;margin-top:15px;margin-bottom:15px;}
 .btn {padding:10px 20px;background:#ff5722;color:white;border:none;border-radius:10px;cursor:pointer;font-size:18px;}
 .btn:hover {background:#ff784e;}
 .menu-btn {position:absolute;top:20px;right:20px;width:30px;height:25px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;}
@@ -37,6 +37,8 @@ h2 {text-align:center;margin-bottom:15px;}
 .menu-content div {padding:10px;cursor:pointer;border-bottom:1px solid #444;}
 .menu-content div:last-child{border:none;}
 .menu-content div:hover{background:#3a3a3a;}
+.suggested {margin-top:15px;}
+.suggested h3 {margin-bottom:10px;}
 </style>
 </head>
 <body>
@@ -56,10 +58,16 @@ h2 {text-align:center;margin-bottom:15px;}
   <div id="mainContent">
     <input id="search" type="text" placeholder="🔍 Search...">
     <div id="playlist"></div>
+
     <div class="controls">
       <button class="btn" onclick="prevAudio()">⏮️</button>
       <button class="btn" id="playPauseBtn" onclick="togglePlay()">▶️</button>
       <button class="btn" onclick="nextAudio()">⏭️</button>
+    </div>
+
+    <div class="suggested">
+      <h3>Suggested</h3>
+      <div id="suggestedList"></div>
     </div>
   </div>
 
@@ -76,11 +84,14 @@ h2 {text-align:center;margin-bottom:15px;}
 let playlist = [
   { title: "Cáo Réo", url: "https://files.catbox.moe/n4hdcs.mp3" },
   { title: "Nhạc Chill", url: "https://files.catbox.moe/xxxxx.mp3" },
-  { title: "Remix Căng", url: "https://files.catbox.moe/yyyyy.mp3" }
+  { title: "Remix Căng", url: "https://files.catbox.moe/yyyyy.mp3" },
+  { title: "Nhạc Lofi", url: "https://files.catbox.moe/aaaaa.mp3" },
+  { title: "Nhạc Vui", url: "https://files.catbox.moe/bbbbb.mp3" }
 ];
 
 const audio = document.getElementById("player");
 const playlistDiv = document.getElementById("playlist");
+const suggestedDiv = document.getElementById("suggestedList");
 const searchBox = document.getElementById("search");
 const historyList = document.getElementById("historyList");
 const playPauseBtn = document.getElementById("playPauseBtn");
@@ -100,25 +111,43 @@ function renderPlaylist(filter){
     const div=document.createElement("div");
     div.className="song"+(i===index?" active":"");
     div.textContent=song.title;
-
-    // highlight nếu filter trùng
     if(filter && noAccent(song.title).includes(noAccent(filter))){
       div.style.background="#ff5722";
     } else {
       div.style.background="#2b2b2b";
     }
-
-    div.onclick=()=>{
-      index=i;
-      loadSong(i);
-    };
+    div.onclick=()=>{ index=i; loadSong(i); };
     playlistDiv.appendChild(div);
+  });
+}
+
+// 🔹 Render suggested ngẫu nhiên
+function renderSuggested(){
+  suggestedDiv.innerHTML="";
+  let usedIndexes = [];
+  const count = Math.min(3, playlist.length);
+  while(usedIndexes.length < count){
+    let i = Math.floor(Math.random() * playlist.length);
+    if(!usedIndexes.includes(i)) usedIndexes.push(i);
+  }
+  usedIndexes.forEach(i=>{
+    const div = document.createElement("div");
+    div.className="suggested-song";
+    div.textContent = playlist[i].title;
+    div.onclick = ()=>{
+      audio.src = playlist[i].url;
+      audio.currentTime = 0;
+      audio.play();
+      updatePlayButton();
+    };
+    suggestedDiv.appendChild(div);
   });
 }
 
 // 🔹 Load bài
 function loadSong(i){
-  audio.src=playlist[i].url;
+  audio.src = playlist[i].url;
+  audio.currentTime=0;
   audio.play();
   updatePlayButton();
   highlight();
@@ -156,6 +185,7 @@ function showMain(){
   document.getElementById("mainContent").style.display="block"; 
   document.getElementById("historyContent").style.display="none"; 
   renderPlaylist(searchBox.value);
+  renderSuggested();
 }
 function showHistory(){ 
   document.getElementById("mainContent").style.display="none"; 
@@ -181,7 +211,15 @@ function renderHistory(){
     li.style.cursor="pointer";
     li.onclick=()=>{
       const idx=playlist.findIndex(p=>p.url===h.url);
-      if(idx!==-1){ index=idx; loadSong(index); audio.currentTime=h.time||0; showMain();}
+      if(idx!==-1){
+        index=idx;
+        audio.src = playlist[index].url;
+        audio.currentTime = h.time || 0;
+        audio.play();
+        updatePlayButton();
+        highlight();
+        showMain();
+      }
     };
     historyList.appendChild(li);
   });
@@ -199,8 +237,11 @@ let lastIndex=localStorage.getItem("lastIndex");
 let lastTime=localStorage.getItem("lastTime");
 if(lastIndex!==null){ 
   index=parseInt(lastIndex); 
-  loadSong(index); 
-  audio.currentTime=lastTime?parseFloat(lastTime):0; 
+  audio.src = playlist[index].url;
+  audio.currentTime = lastTime ? parseFloat(lastTime) : 0;
+  audio.play();
+  updatePlayButton();
+  highlight();
 } else loadSong(0);
 
 // 🔹 Lưu thời gian và history liên tục mỗi 2s
@@ -209,6 +250,10 @@ setInterval(()=>{
   localStorage.setItem("lastIndex",index); 
   localStorage.setItem("lastTime",audio.currentTime); 
 },2000);
+
+// 🔹 Init suggested + playlist
+renderSuggested();
+renderPlaylist("");
 </script>
 
 </body>
