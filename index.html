@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YouTube Audio Player</title>
+<title>YouTube Audio Player + History + Title</title>
 <style>
 body {
   font-family: Arial, sans-serif;
@@ -32,9 +32,8 @@ button:hover { background: #ff784e; }
 
 <input type="text" id="ytLink" placeholder="Nhập link YouTube hoặc Video ID" />
 <br>
-<button id="playBtn">▶️ Play</button>
-<button id="pauseBtn">⏸️ Pause</button>
-<p id="historyText">History: Chưa có</p>
+<button id="toggleBtn">▶️ Play</button>
+<p id="titleText">Chưa có video</p>
 
 <div id="player"></div>
 
@@ -43,61 +42,94 @@ button:hover { background: #ff784e; }
 let player;
 let currentVideoId = "";
 const historyKey = "ytAudioHistory";
+const timeKey = "ytAudioTime";
+let isPlaying = false;
 
-function extractVideoID(url) {
-  // Nếu là link YouTube
-  const reg = /(?:v=|\/)([0-9A-Za-z_-]{11})/;
-  const match = url.match(reg);
-  if(match) return match[1];
-  // Nếu là ID trực tiếp
-  if(url.length===11) return url;
-  return null;
+// Lấy video ID từ link hoặc ID trực tiếp
+function extractVideoID(url){
+    const reg = /(?:v=|\/)([0-9A-Za-z_-]{11})/;
+    const match = url.match(reg);
+    if(match) return match[1];
+    if(url.length===11) return url;
+    return null;
 }
 
 // Load history
 const saved = JSON.parse(localStorage.getItem(historyKey) || "{}");
+const savedTime = parseFloat(localStorage.getItem(timeKey)) || 0;
 if(saved.videoId) currentVideoId = saved.videoId;
 
-function onYouTubeIframeAPIReady() {
-  if(!currentVideoId) return;
-  player = new YT.Player('player',{
-    height:'0', width:'0', videoId: currentVideoId,
-    events: {
-      'onReady':()=>{},
-      'onStateChange':onPlayerStateChange
-    }
-  });
-  document.getElementById("historyText").textContent = "History: " + currentVideoId;
+function onYouTubeIframeAPIReady(){
+    if(!currentVideoId) return;
+    player = new YT.Player('player',{
+        height:'0',
+        width:'0',
+        videoId: currentVideoId,
+        events:{
+            'onReady': (event)=>{
+                player.seekTo(savedTime);
+                fetchTitle(currentVideoId);
+            },
+            'onStateChange': onPlayerStateChange
+        }
+    });
 }
 
 function onPlayerStateChange(event){
-  // Có thể thêm lưu thời gian
+    if(event.data === YT.PlayerState.PLAYING) isPlaying=true;
+    else isPlaying=false;
 }
 
-document.getElementById("playBtn").addEventListener("click", ()=>{
-  const input = document.getElementById("ytLink").value.trim();
-  const videoId = extractVideoID(input);
-  if(!videoId){ alert("Link không hợp lệ!"); return; }
-  currentVideoId = videoId;
+// Toggle Play/Pause
+document.getElementById("toggleBtn").addEventListener("click", ()=>{
+    const input = document.getElementById("ytLink").value.trim();
+    const videoId = extractVideoID(input) || currentVideoId;
+    if(!videoId){ alert("Link không hợp lệ!"); return; }
+    currentVideoId = videoId;
 
-  if(player){
-    player.loadVideoById(videoId);
-  } else {
-    player = new YT.Player('player',{
-      height:'0', width:'0', videoId: videoId,
-      events: { 'onReady':()=>player.playVideo(), 'onStateChange':onPlayerStateChange }
+    if(player){
+        player.loadVideoById(videoId);
+        player.playVideo();
+    } else {
+        player = new YT.Player('player',{
+            height:'0',
+            width:'0',
+            videoId: videoId,
+            events:{
+                'onReady': (event)=>{
+                    player.playVideo();
+                    fetchTitle(videoId);
+                },
+                'onStateChange': onPlayerStateChange
+            }
+        });
+    }
+    document.getElementById("ytLink").value="";
+    localStorage.setItem(historyKey, JSON.stringify({videoId}));
+});
+
+// Lưu thời gian nghe
+setInterval(()=>{
+    if(player && player.getCurrentTime){
+        localStorage.setItem(timeKey, player.getCurrentTime());
+    }
+},1000);
+
+// Lấy title video từ YouTube API
+function fetchTitle(videoId){
+    fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=YOUR_API_KEY`)
+    .then(res=>res.json())
+    .then(data=>{
+        if(data.items && data.items.length>0){
+            const title = data.items[0].snippet.title;
+            document.getElementById("titleText").textContent = "Đang nghe: " + title;
+        }
+    })
+    .catch(err=>{
+        document.getElementById("titleText").textContent = "Đang nghe: " + videoId;
     });
-  }
-
-  localStorage.setItem(historyKey, JSON.stringify({videoId}));
-  document.getElementById("historyText").textContent = "History: " + videoId;
-});
-
-document.getElementById("pauseBtn").addEventListener("click", ()=>{
-  if(player) player.pauseVideo();
-});
+}
 </script>
 
 </body>
 </html>
-
