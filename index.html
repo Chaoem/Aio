@@ -105,19 +105,12 @@ function noAccent(str){
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D").toLowerCase();
 }
 
-// 🔹 Render playlist (chỉ hiện bài trùng khi search)
 function renderPlaylist(filter){
-  playlistDiv.innerHTML="";
+  playlistDiv.innerHTML = "";
   const searchTerm = filter.trim();
-  if(searchTerm===""){
-    // chưa search → show tất cả playlist
-    playlist.forEach((song,i)=>{
-      const div = document.createElement("div");
-      div.className = "song"+(i===index?" active":"");
-      div.textContent = song.title;
-      div.onclick=()=>{ index=i; loadSong(i); };
-      playlistDiv.appendChild(div);
-    });
+  
+  if(searchTerm === ""){
+    // search rỗng → không hiển thị kết quả
     return;
   }
 
@@ -126,7 +119,7 @@ function renderPlaylist(filter){
   playlist.forEach((song,i)=>{
     if(noAccent(song.title).includes(noAccent(searchTerm))){
       const div = document.createElement("div");
-      div.className = "song"+(i===index?" active":"");
+      div.className = "song" + (i===index?" active":"");
       div.textContent = song.title;
       div.onclick=()=>{ index=i; loadSong(i); };
       playlistDiv.appendChild(div);
