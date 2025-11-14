@@ -27,7 +27,7 @@ h2 {text-align:center;margin-bottom:15px;}
 #search {width:100%;padding:12px;border-radius:10px;border:none;font-size:16px;background:#2b2b2b;color:white;margin-bottom:15px;}
 .song {padding:12px;margin-bottom:5px;background:#2b2b2b;border-radius:10px;cursor:pointer;transition:0.2s;}
 .song:hover {background:#3a3a3a;}
-.active {background:#ff5722 !important;}
+.active {border-left:4px solid #ff5722;}
 .controls {display:flex;justify-content:space-around;margin-top:15px;}
 .btn {padding:10px 20px;background:#ff5722;color:white;border:none;border-radius:10px;cursor:pointer;font-size:18px;}
 .btn:hover {background:#ff784e;}
@@ -95,15 +95,21 @@ function noAccent(str){
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D").toLowerCase();
 }
 
-// 🔹 Render playlist
+// 🔹 Render playlist (luôn hiển thị tất cả, search chỉ highlight)
 function renderPlaylist(filter){
   playlistDiv.innerHTML="";
-  const filtered = playlist.filter(song => noAccent(song.title).includes(noAccent(filter)));
-  const displayList = filtered.length ? filtered : playlist; // recommended
-  displayList.forEach((song,i)=>{
+  playlist.forEach((song,i)=>{
     const div=document.createElement("div");
     div.className="song"+(i===index?" active":"");
     div.textContent=song.title;
+
+    // highlight nếu filter trùng
+    if(filter && noAccent(song.title).includes(noAccent(filter))){
+      div.style.background="#ff5722";
+    } else {
+      div.style.background="#2b2b2b";
+    }
+
     div.onclick=()=>{
       index=i;
       loadSong(i);
@@ -150,7 +156,7 @@ function toggleMenu(){
   const menu=document.getElementById("menuContent");
   menu.style.display=menu.style.display==="flex"?"none":"flex";
 }
-function showMain(){ document.getElementById("mainContent").style.display="block"; document.getElementById("historyContent").style.display="none"; }
+function showMain(){ document.getElementById("mainContent").style.display="block"; document.getElementById("historyContent").style.display="none"; renderPlaylist(searchBox.value);}
 function showHistory(){ document.getElementById("mainContent").style.display="none"; document.getElementById("historyContent").style.display="block"; renderHistory(); }
 
 // 🔹 History
@@ -191,7 +197,11 @@ if(lastIndex!==null){ index=parseInt(lastIndex); loadSong(index); audio.currentT
 else loadSong(0);
 
 // 🔹 Lưu thời gian liên tục
-setInterval(()=>{ saveHistory(index,audio.currentTime); localStorage.setItem("lastIndex",index); localStorage.setItem("lastTime",audio.currentTime); },2000);
+setInterval(()=>{ 
+  saveHistory(index,audio.currentTime); 
+  localStorage.setItem("lastIndex",index); 
+  localStorage.setItem("lastTime",audio.currentTime); 
+},2000);
 </script>
 
 </body>
