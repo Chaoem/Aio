@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobile YouTube Audio Player</title>
+<style>
+body {
+  font-family: Arial;
+  background: #111;
+  color: #fff;
+  text-align: center;
+  padding: 30px;
+}
+h1 { margin-bottom: 20px; }
+select, button {
+  font-size: 18px;
+  padding: 10px;
+  margin: 5px 0;
+  width: 80%;
+  max-width: 300px;
+  border-radius: 8px;
+  border: none;
+}
+select { background: #333; color: #fff; }
+button { background: #ff5722; color: #fff; cursor: pointer; }
+button:hover { background: #ff784e; }
+#player { width:0; height:0; } /* Ẩn video */
+</style>
+</head>
+<body>
+
+<h1>Mobile YouTube Audio Player</h1>
+
+<select id="playlist"></select>
+
+<div>
+  <button id="prevBtn">⏮️ Previous</button>
+  <button id="playBtn">▶️ Play</button>
+  <button id="pauseBtn">⏸️ Pause</button>
+  <button id="nextBtn">⏭️ Next</button>
+</div>
+
+<div id="player"></div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+let player;
+let currentIndex = 0;
+let isReady = false;
+
+// Thêm video YouTube vào đây, dạng: {id: "VIDEO_ID", title: "Tên bài"}
+const playlist = [
+  {id: "FndiPlm3Iuo", title: "Cô Revisit"},
+  {id: "dQw4w9WgXcQ", title: "Never Gonna Give You Up"},
+  {id: "oHg5SJYRHA0", title: "Sample Song 3"}
+];
+
+// Tạo dropdown playlist
+const select = document.getElementById("playlist");
+playlist.forEach((video, index) => {
+  const option = document.createElement("option");
+  option.value = index;
+  option.text = video.title;
+  select.add(option);
+});
+
+// YouTube API
+function onYouTubeIframeAPIReady() {
+  player = new YT.Player('player', {
+    height: '0',
+    width: '0',
+    videoId: playlist[currentIndex].id,
+    events: {
+      'onReady': onPlayerReady,
+      'onStateChange': onPlayerStateChange
+    }
+  });
+}
+
+function onPlayerReady(event) {
+  isReady = true;
+  document.getElementById("playBtn").disabled = false;
+}
+
+function onPlayerStateChange(event) {
+  if(event.data === YT.PlayerState.ENDED) nextAudio();
+}
+
+// Buttons
+const playBtn = document.getElementById("playBtn");
+const pauseBtn = document.getElementById("pauseBtn");
+const nextBtn = document.getElementById("nextBtn");
+const prevBtn = document.getElementById("prevBtn");
+
+// Disable Play trước khi player sẵn sàng
+playBtn.disabled = true;
+
+playBtn.onclick = () => { if(isReady) player.playVideo(); }
+pauseBtn.onclick = () => { if(isReady) player.pauseVideo(); }
+nextBtn.onclick = () => nextAudio();
+prevBtn.onclick = () => prevAudio();
+
+select.addEventListener("change", function() {
+  currentIndex = parseInt(this.value);
+  loadVideo();
+});
+
+// Load video
+function loadVideo() {
+  if(!isReady) return;
+  player.loadVideoById(playlist[currentIndex].id);
+}
+
+// Next / Previous
+function nextAudio() {
+  if(!isReady) return;
+  currentIndex = (currentIndex + 1) % playlist.length;
+  select.selectedIndex = currentIndex;
+  loadVideo();
+}
+
+function prevAudio() {
+  if(!isReady) return;
+  currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+  select.selectedIndex = currentIndex;
+  loadVideo();
+}
+</script>
+
+
+</body></html>
