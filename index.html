@@ -1,133 +1,143 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YouTube Audio Player + History + Title</title>
+<title>Fake Roblox Executor</title>
+
 <style>
-body {
-  font-family: Arial, sans-serif;
-  background: #1e1e1e;
-  color: #fff;
-  text-align: center;
-  padding: 20px;
-}
-input, button {
-  font-size: 16px;
-  padding: 10px;
-  margin: 10px 0;
-  width: 90%;
-  max-width: 400px;
-  border-radius: 8px;
-  border: none;
-}
-button { background: #ff5722; color: #fff; cursor: pointer; }
-button:hover { background: #ff784e; }
-#player { width:0; height:0; }
+    body {
+        background: #0f0f0f;
+        color: white;
+        font-family: Arial;
+        margin: 0;
+        padding: 0;
+    }
+
+    .topbar {
+        background: #1b1b1b;
+        padding: 10px;
+        font-size: 20px;
+        font-weight: bold;
+        text-align: center;
+        border-bottom: 2px solid #333;
+    }
+
+    .container {
+        padding: 20px;
+        display: flex;
+        gap: 20px;
+    }
+
+    textarea {
+        width: 50%;
+        height: 400px;
+        background: #111;
+        color: #0f0;
+        border: 2px solid #333;
+        padding: 10px;
+        font-size: 15px;
+        resize: none;
+    }
+
+    .sidebar {
+        width: 50%;
+    }
+
+    #console {
+        background: black;
+        height: 150px;
+        padding: 10px;
+        overflow-y: auto;
+        border: 2px solid #333;
+        font-size: 14px;
+        white-space: pre-line;
+    }
+
+    /* Fake Script UI */
+    #ui-display {
+        margin-top: 20px;
+        padding: 20px;
+        border-radius: 12px;
+        background: #1a1a1a;
+        border: 2px solid #333;
+        display: none;
+    }
+
+    .ui-window {
+        background: #222;
+        border-radius: 10px;
+        padding: 15px;
+        border: 1px solid #444;
+    }
+
+    .ui-title {
+        font-size: 22px;
+        color: #0f0;
+        margin-bottom: 10px;
+    }
+
+    .ui-button {
+        padding: 10px;
+        background: #444;
+        color: white;
+        display: inline-block;
+        margin-top: 8px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .btn {
+        padding: 10px;
+        background: #444;
+        border: none;
+        color: white;
+        cursor: pointer;
+        width: 100%;
+        margin-bottom: 10px;
+        border-radius: 5px;
+    }
+    .btn:hover {
+        background: #555;
+    }
 </style>
 </head>
 <body>
 
-<h2>YouTube Audio Player</h2>
+<div class="topbar">Fake Roblox Executor</div>
 
-<input type="text" id="ytLink" placeholder="Nhập link YouTube hoặc Video ID" />
-<br>
-<button id="toggleBtn">▶️ Play</button>
-<p id="titleText">Chưa có video</p>
+<div class="container">
+    <textarea id="scriptInput" placeholder="Paste script here..."></textarea>
 
-<div id="player"></div>
+    <div class="sidebar">
+        <button class="btn" onclick="execute()">Execute</button>
+        <div id="console">Console output...</div>
 
-<script src="https://www.youtube.com/iframe_api"></script>
+        <div id="ui-display"></div>
+    </div>
+</div>
+
 <script>
-let player;
-let currentVideoId = "";
-const historyKey = "ytAudioHistory";
-const timeKey = "ytAudioTime";
-let isPlaying = false;
+function execute() {
+    let consoleBox = document.getElementById("console");
+    let uiBox = document.getElementById("ui-display");
 
-// Lấy video ID từ link hoặc ID trực tiếp
-function extractVideoID(url){
-    const reg = /(?:v=|\/)([0-9A-Za-z_-]{11})/;
-    const match = url.match(reg);
-    if(match) return match[1];
-    if(url.length===11) return url;
-    return null;
-}
+    consoleBox.innerText += "\n[+] Executing script...";
+    consoleBox.innerText += "\n[✓] Script executed successfully.";
+    consoleBox.scrollTop = consoleBox.scrollHeight;
 
-// Load history
-const saved = JSON.parse(localStorage.getItem(historyKey) || "{}");
-const savedTime = parseFloat(localStorage.getItem(timeKey)) || 0;
-if(saved.videoId) currentVideoId = saved.videoId;
+    // Always show default UI
+    uiBox.style.display = "block";
+    uiBox.innerHTML = `
+        <div class="ui-window">
+            <div class="ui-title">Example UI</div>
+            <p>• This is a default fake UI</p>
+            <p>• Loaded after Execute</p>
 
-function onYouTubeIframeAPIReady(){
-    if(!currentVideoId) return;
-    player = new YT.Player('player',{
-        height:'0',
-        width:'0',
-        videoId: currentVideoId,
-        events:{
-            'onReady': (event)=>{
-                player.seekTo(savedTime);
-                fetchTitle(currentVideoId);
-            },
-            'onStateChange': onPlayerStateChange
-        }
-    });
-}
-
-function onPlayerStateChange(event){
-    if(event.data === YT.PlayerState.PLAYING) isPlaying=true;
-    else isPlaying=false;
-}
-
-// Toggle Play/Pause
-document.getElementById("toggleBtn").addEventListener("click", ()=>{
-    const input = document.getElementById("ytLink").value.trim();
-    const videoId = extractVideoID(input) || currentVideoId;
-    if(!videoId){ alert("Link không hợp lệ!"); return; }
-    currentVideoId = videoId;
-
-    if(player){
-        player.loadVideoById(videoId);
-        player.playVideo();
-    } else {
-        player = new YT.Player('player',{
-            height:'0',
-            width:'0',
-            videoId: videoId,
-            events:{
-                'onReady': (event)=>{
-                    player.playVideo();
-                    fetchTitle(videoId);
-                },
-                'onStateChange': onPlayerStateChange
-            }
-        });
-    }
-    document.getElementById("ytLink").value="";
-    localStorage.setItem(historyKey, JSON.stringify({videoId}));
-});
-
-// Lưu thời gian nghe
-setInterval(()=>{
-    if(player && player.getCurrentTime){
-        localStorage.setItem(timeKey, player.getCurrentTime());
-    }
-},1000);
-
-// Lấy title video từ YouTube API
-function fetchTitle(videoId){
-    fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=YOUR_API_KEY`)
-    .then(res=>res.json())
-    .then(data=>{
-        if(data.items && data.items.length>0){
-            const title = data.items[0].snippet.title;
-            document.getElementById("titleText").textContent = "Đang nghe: " + title;
-        }
-    })
-    .catch(err=>{
-        document.getElementById("titleText").textContent = "Đang nghe: " + videoId;
-    });
+            <div class="ui-button">Toggle A</div>
+            <div class="ui-button">Toggle B</div>
+            <div class="ui-button">Button Action</div>
+        </div>
+    `;
 }
 </script>
 
