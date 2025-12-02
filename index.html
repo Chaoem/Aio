@@ -1,40 +1,85 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Fake Roblox Executor</title>
+<title>MP4 → VBEE Ngọc Huyền</title>
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.2/dist/ffmpeg.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/whisper-tiny/dist/whisper-tiny.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/translate.js@1.0.0/translate.min.js"></script>
+</head>
+<body>
+<h2>MP4 → Video Việt Ngọc Huyền</h2>
+<input type="file" id="videoInput" accept="video/*">
+<br><br>
+<button onclick="processVideo()">Chạy quy trình</button>
+<p id="status"></p>
 
-<style>
-    body {
-        background: #0f0f0f;
-        color: white;
-        font-family: Arial;
-        margin: 0;
-        padding: 0;
-    }
+<script>
+const { createFFmpeg, fetchFile } = FFmpeg;
+const ffmpeg = createFFmpeg({ log:true });
 
-    .topbar {
-        background: #1b1b1b;
-        padding: 10px;
-        font-size: 20px;
-        font-weight: bold;
-        text-align: center;
-        border-bottom: 2px solid #333;
-    }
+let videoFile = null;
 
-    .container {
-        padding: 20px;
-        display: flex;
-        gap: 20px;
-    }
+document.getElementById("videoInput").addEventListener("change", e=>{
+    videoFile = e.target.files[0];
+});
 
-    textarea {
-        width: 50%;
-        height: 400px;
-        background: #111;
-        color: #0f0;
-        border: 2px solid #333;
-        padding: 10px;
+async function processVideo(){
+    if(!videoFile) return alert("Chưa chọn video");
+    const status = document.getElementById("status");
+
+    status.innerText = "Đang load FFmpeg...";
+    if(!ffmpeg.isLoaded()) await ffmpeg.load();
+
+    const data = await fetchFile(videoFile);
+    ffmpeg.FS('writeFile','input.mp4',data);
+
+    status.innerText = "Tách MP3...";
+    await ffmpeg.run('-i','input.mp4','-vn','-acodec','libmp3lame','audio.mp3');
+    const audioData = ffmpeg.FS('readFile','audio.mp3');
+    const mp3Blob = new Blob([audioData.buffer],{type:'audio/mpeg'});
+
+    status.innerText = "Nhận diện giọng Trung...";
+    const reader = new FileReader();
+    reader.readAsArrayBuffer(mp3Blob);
+    reader.onload = async ()=>{
+        const text = await WhisperTiny.transcribe(new Uint8Array(reader.result), {language:"zh"});
+        status.innerText = "Dịch sang tiếng Việt...";
+        const vietText = await Translate(text,{from:"zh",to:"vi"});
+
+        // --- VBEE API ---
+        status.innerText = "Tạo giọng Ngọc Huyền trên VBEE...";
+        const apiKey = "YOUR_VBEE_API_KEY"; // bạn cần key VBEE
+        const response = await fetch("https://vbee.vn/api/tts",{
+            method:"POST",
+            headers: {"Content-Type":"application/json","Authorization":`Bearer ${apiKey}`},
+            body: JSON.stringify({voice:"ngochuyen", text:vietText})
+        });
+        const json = await response.json();
+        // json.url chứa file mp3 giọng Ngọc Huyền
+        const mp3Url = json.url;
+
+        status.innerText = "Tải audio VBEE...";
+        const mp3Res = await fetch(mp3Url);
+        const mp3Buffer = await mp3Res.arrayBuffer();
+        ffmpeg.FS('writeFile','newaudio.mp3',new Uint8Array(mp3Buffer));
+
+        status.innerText = "Ghép audio VBEE vào video...";
+        await ffmpeg.run('-i','input.mp4','-i','newaudio.mp3','-c:v','copy','-map','0:v:0','-map','1:a:0','output.mp4');
+        const outData = ffmpeg.FS('readFile','output.mp4');
+        const blob = new Blob([outData.buffer],{type:'video/mp4'});
+
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = "video_vbee.mp4";
+        a.click();
+
+        status.innerText = "Hoàn tất! Video có giọng Ngọc Huyền";
+    };
+}
+</script>
+</body>
+</html>        padding: 10px;
         font-size: 15px;
         resize: none;
     }
