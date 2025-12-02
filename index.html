@@ -2,43 +2,35 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Video → MP3 → Dịch → Copy All</title>
+<title>Translate + Cover Video</title>
 <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.2/dist/ffmpeg.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/whisper-tiny/dist/whisper-tiny.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/translate.js@1.0.0/translate.min.js"></script>
 <style>
-body { font-family: Arial; background:#111; color:#fff; padding:20px; }
-button { padding:10px 20px; margin:10px 0; cursor:pointer; }
-textarea, input { width:100%; margin-top:10px; background:#222; color:#0f0; padding:10px; border:none; }
+body{font-family:Arial;background:#111;color:#fff;padding:20px;}
+button{padding:10px 20px;margin:10px 0;}
+video{max-width:480px;}
 </style>
 </head>
 <body>
-
-<h2>🎬 Video → MP3 → Dịch Tiếng Trung → Tiếng Việt</h2>
+<h2>🎬 MP4 → Vietsub + Cover chữ Trung</h2>
 
 <input type="file" id="videoInput" accept="video/*"><br>
-<p id="status">Chưa chọn video</p>
 <button onclick="processVideo()">Chạy quy trình</button>
+<p id="status">Chưa chọn video</p>
 
-<h3>Tiếng Trung nhận diện:</h3>
-<textarea id="chinaText" placeholder="Text tiếng Trung"></textarea>
-
-<h3>Tiếng Việt dịch:</h3>
-<textarea id="vietText" placeholder="Text tiếng Việt"></textarea>
-
-<h3>Input văn bản cuối:</h3>
-<input type="text" id="vietInput" placeholder="Có thể chỉnh sửa hoặc copy văn bản">
-
-<button onclick="copyAll()">📋 Copy All</button>
+<video id="preview" controls></video>
+<a id="download" style="display:block;color:#0f0;margin-top:10px;">Tải video mới</a>
 
 <script>
 const { createFFmpeg, fetchFile } = FFmpeg;
-const ffmpeg = createFFmpeg({ log:true });
+const ffmpeg = createFFmpeg({log:true});
 let videoFile = null;
 
-document.getElementById("videoInput").addEventListener("change", e=>{
+document.getElementById("videoInput").addEventListener("change",e=>{
     videoFile = e.target.files[0];
     document.getElementById("status").innerText = "Đã chọn: "+videoFile.name;
+    document.getElementById("preview").src = URL.createObjectURL(videoFile);
 });
 
 async function processVideo(){
@@ -50,7 +42,7 @@ async function processVideo(){
     const data = await fetchFile(videoFile);
     ffmpeg.FS('writeFile','input.mp4',data);
 
-    status.innerText = "Tách MP3...";
+    status.innerText = "Tách audio...";
     await ffmpeg.run('-i','input.mp4','-vn','-acodec','libmp3lame','audio.mp3');
     const mp3Data = ffmpeg.FS('readFile','audio.mp3');
     const mp3Blob = new Blob([mp3Data.buffer],{type:'audio/mpeg'});
@@ -61,25 +53,33 @@ async function processVideo(){
     reader.onload = async ()=>{
         const audioData = new Uint8Array(reader.result);
         const text = await WhisperTiny.transcribe(audioData,{language:"zh"});
-        document.getElementById("chinaText").value = text;
 
         status.innerText = "Dịch sang Việt...";
-        const viet = await Translate(text,{from:"zh",to:"vi"});
-        document.getElementById("vietText").value = viet;
-        document.getElementById("vietInput").value = viet;
+        const vietText = await Translate(text,{from:"zh",to:"vi"});
 
-        status.innerText = "Xong! Có thể chỉnh sửa input và copy.";
+        status.innerText = "Tạo sub + cover chữ...";
+
+        // --- Tạo file sub SRT ---
+        const srt = `1
+00:00:00,000 --> 00:00:10,000
+${vietText}`;
+        ffmpeg.FS('writeFile','sub.srt',srt);
+
+        // --- Ghép sub + cover chữ (màu đen) ---
+        await ffmpeg.run('-i','input.mp4','-vf','subtitles=sub.srt:force_style=\'Fontsize=24,PrimaryColour=&H00FF00&,BackColour=&H000000&\'','-c:a','copy','output.mp4');
+
+        const outData = ffmpeg.FS('readFile','output.mp4');
+        const blob = new Blob([outData.buffer],{type:'video/mp4'});
+        const url = URL.createObjectURL(blob);
+
+        const a = document.getElementById("download");
+        a.href = url;
+        a.download = "video_vietsub.mp4";
+
+        document.getElementById("preview").src = url;
+        status.innerText = "Hoàn tất! Video có Vietsub + cover chữ.";
     }
 }
-
-function copyAll(){
-    const input = document.getElementById("vietInput");
-    input.select();
-    input.setSelectionRange(0, 99999);
-    document.execCommand("copy");
-    alert("Đã copy toàn bộ văn bản!");
-}
 </script>
-
 </body>
 </html>
