@@ -2,16 +2,22 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Full MP4 → VBEE Ngọc Huyền + Vietsub + Cover</title>
+<title>MP4 → Vietsub + Cover chữ Trung</title>
 <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.2/dist/ffmpeg.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/whisper-tiny/dist/whisper-tiny.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/translate.js@1.0.0/translate.min.js"></script>
+<style>
+body{font-family:Arial;background:#111;color:#fff;padding:20px;}
+button{padding:10px 20px;margin:10px 0;}
+video{max-width:480px;margin-top:10px;}
+</style>
 </head>
 <body>
-<h2>Full: MP4 → VBEE Ngọc Huyền + Vietsub + Cover</h2>
+
+<h2>MP4 → Vietsub + Cover chữ Trung</h2>
 
 <input type="file" id="videoInput" accept="video/*"><br>
-<button onclick="processFull()">Chạy Full</button>
+<button onclick="processVideo()">Chạy quy trình</button>
 <p id="status">Chưa chọn video</p>
 
 <video id="preview" controls></video>
@@ -22,13 +28,13 @@ const { createFFmpeg, fetchFile } = FFmpeg;
 const ffmpeg = createFFmpeg({log:true});
 let videoFile = null;
 
-document.getElementById("videoInput").addEventListener("change",e=>{
+document.getElementById("videoInput").addEventListener("change", e=>{
     videoFile = e.target.files[0];
     document.getElementById("status").innerText = "Đã chọn: "+videoFile.name;
     document.getElementById("preview").src = URL.createObjectURL(videoFile);
 });
 
-async function processFull(){
+async function processVideo(){
     if(!videoFile) return alert("Chưa chọn video");
     const status = document.getElementById("status");
 
@@ -39,7 +45,7 @@ async function processFull(){
     ffmpeg.FS('writeFile','input.mp4',data);
 
     // 1️⃣ Tách audio
-    status.innerText = "Tách audio MP3...";
+    status.innerText = "Tách audio...";
     await ffmpeg.run('-i','input.mp4','-vn','-acodec','libmp3lame','audio.mp3');
     const mp3Data = ffmpeg.FS('readFile','audio.mp3');
     const mp3Blob = new Blob([mp3Data.buffer],{type:'audio/mpeg'});
@@ -55,35 +61,18 @@ async function processFull(){
         status.innerText = "Dịch sang Việt...";
         const textVN = await Translate(textCN,{from:"zh",to:"vi"});
 
-        // 3️⃣ Tạo audio VBEE Ngọc Huyền
-        status.innerText = "Tạo giọng VBEE...";
-        const apiKey = "YOUR_VBEE_API_KEY"; // Thay bằng token của bạn
-        const res = await fetch("https://vbee.vn/api/tts",{
-            method:"POST",
-            headers:{
-                "Content-Type":"application/json",
-                "Authorization":"Bearer "+apiKey
-            },
-            body: JSON.stringify({voice:"ngochuyen", text:textVN})
-        });
-        const j = await res.json();
-        const mp3VbeeUrl = j.url; // file VBEE
-        const mp3VbeeRes = await fetch(mp3VbeeUrl);
-        const mp3VbeeBuf = new Uint8Array(await mp3VbeeRes.arrayBuffer());
-        ffmpeg.FS('writeFile','vbee.mp3',mp3VbeeBuf);
-
-        // 4️⃣ Tạo sub SRT (ví dụ toàn bộ 10s)
+        // 3️⃣ Tạo sub SRT (giả lập toàn bộ video 10s, có thể điều chỉnh)
         const srt = `1
 00:00:00,000 --> 00:00:10,000
 ${textVN}`;
         ffmpeg.FS('writeFile','sub.srt',srt);
 
-        // 5️⃣ Ghép sub + audio VBEE + cover chữ
-        status.innerText = "Ghép audio VBEE + sub + cover chữ...";
+        // 4️⃣ Ghép sub + cover chữ
+        status.innerText = "Ghép sub + cover chữ...";
         await ffmpeg.run(
-            '-i','input.mp4','-i','vbee.mp3',
-            '-c:v','libx264','-c:a','aac','-map','0:v:0','-map','1:a:0',
+            '-i','input.mp4',
             '-vf','subtitles=sub.srt:force_style=\'Fontsize=24,PrimaryColour=&H00FF00&,BackColour=&H000000&\'',
+            '-c:a','copy',
             'output.mp4'
         );
 
@@ -93,10 +82,10 @@ ${textVN}`;
 
         const a = document.getElementById("download");
         a.href = url;
-        a.download = "video_full_vbee.mp4";
+        a.download = "video_vietsub.mp4";
 
         document.getElementById("preview").src = url;
-        status.innerText = "Hoàn tất! Video có giọng Ngọc Huyền + Vietsub + cover chữ.";
+        status.innerText = "Hoàn tất! Video có Vietsub + cover chữ Trung.";
     }
 }
 </script>
