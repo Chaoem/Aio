@@ -1,20 +1,108 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-  <meta charset="utf-8">
-  <title>Tool Demo</title>
+    <meta charset="UTF-8">
+    <title>Simple Translate Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+            padding: 20px;
+        }
+        textarea, select, button {
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            font-size: 16px;
+        }
+        textarea {
+            height: 120px;
+        }
+        button {
+            background: #22c55e;
+            color: black;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #16a34a;
+        }
+        .box {
+            max-width: 600px;
+            margin: auto;
+            background: #020617;
+            padding: 20px;
+            border-radius: 10px;
+        }
+    </style>
 </head>
 <body>
-  <h2>Tool Test</h2>
-  <input id="input" placeholder="Nhập gì đó...">
-  <button onclick="run()">Chạy</button>
-  <p id="output"></p>
 
-  <script>
-    function run() {
-      let val = document.getElementById("input").value;
-      document.getElementById("output").innerText = "Kết quả: " + val.toUpperCase();
+<div class="box">
+    <h2>🌐 Tool Dịch Ngôn Ngữ</h2>
+
+    <label>Ngôn ngữ nguồn:</label>
+    <select id="sourceLang">
+        <option value="auto">Tự động</option>
+        <option value="zh">Trung</option>
+        <option value="en">Anh</option>
+        <option value="ja">Nhật</option>
+        <option value="ko">Hàn</option>
+    </select>
+
+    <label>Ngôn ngữ đích:</label>
+    <select id="targetLang">
+        <option value="vi">Việt</option>
+        <option value="en">Anh</option>
+        <option value="zh">Trung</option>
+    </select>
+
+    <textarea id="inputText" placeholder="Nhập text cần dịch..."></textarea>
+
+    <button onclick="translateText()">DỊCH NGAY</button>
+
+    <textarea id="outputText" placeholder="Kết quả sẽ hiện ở đây..." readonly></textarea>
+</div>
+
+<script>
+async function translateText() {
+    const text = document.getElementById("inputText").value;
+    const source = document.getElementById("sourceLang").value;
+    const target = document.getElementById("targetLang").value;
+
+    if (!text.trim()) {
+        alert("Nhập text cần dịch!");
+        return;
     }
-  </script>
+
+    document.getElementById("outputText").value = "Đang dịch...";
+
+    try {
+        const res = await fetch("https://libretranslate.de/translate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                q: text,
+                source: source,
+                target: target,
+                format: "text"
+            })
+        });
+
+        const data = await res.json();
+        document.getElementById("outputText").value = data.translatedText;
+
+    } catch (err) {
+        document.getElementById("outputText").value = "Lỗi khi dịch!";
+        console.error(err);
+    }
+}
+</script>
+
 </body>
-</html>
+  </html>
