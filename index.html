@@ -1,108 +1,100 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title>Simple Translate Tool</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #0f172a;
-            color: white;
-            padding: 20px;
-        }
-        textarea, select, button {
-            width: 100%;
-            margin-top: 10px;
-            padding: 10px;
-            border-radius: 6px;
-            border: none;
-            font-size: 16px;
-        }
-        textarea {
-            height: 120px;
-        }
-        button {
-            background: #22c55e;
-            color: black;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #16a34a;
-        }
-        .box {
-            max-width: 600px;
-            margin: auto;
-            background: #020617;
-            padding: 20px;
-            border-radius: 10px;
-        }
-    </style>
+<meta charset="UTF-8" />
+<title>AI TTS Tool</title>
+<style>
+  body {
+    background: linear-gradient(135deg, #1e1e2f, #12121a);
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 30px;
+  }
+  h2 { margin-bottom: 10px; }
+
+  textarea {
+    width: 95%;
+    height: 140px;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 16px;
+    border: none;
+    outline: none;
+  }
+
+  select, input, button {
+    margin: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+  }
+
+  button {
+    background: #00c853;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+  }
+
+  button.stop { background: #d50000; }
+</style>
 </head>
 <body>
 
-<div class="box">
-    <h2>🌐 Tool Dịch Ngôn Ngữ</h2>
+<h2>🔊 AI Text To Speech Tool</h2>
 
-    <label>Ngôn ngữ nguồn:</label>
-    <select id="sourceLang">
-        <option value="auto">Tự động</option>
-        <option value="zh">Trung</option>
-        <option value="en">Anh</option>
-        <option value="ja">Nhật</option>
-        <option value="ko">Hàn</option>
-    </select>
+<textarea id="text" placeholder="Nhập nội dung để AI đọc..."></textarea><br>
 
-    <label>Ngôn ngữ đích:</label>
-    <select id="targetLang">
-        <option value="vi">Việt</option>
-        <option value="en">Anh</option>
-        <option value="zh">Trung</option>
-    </select>
+<label>Giọng:</label>
+<select id="voiceSelect"></select><br>
 
-    <textarea id="inputText" placeholder="Nhập text cần dịch..."></textarea>
+<label>Tốc độ:</label>
+<input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
 
-    <button onclick="translateText()">DỊCH NGAY</button>
+<label>Cao độ:</label>
+<input type="range" id="pitch" min="0" max="2" step="0.1" value="1"><br>
 
-    <textarea id="outputText" placeholder="Kết quả sẽ hiện ở đây..." readonly></textarea>
-</div>
+<button onclick="speak()">▶ Đọc</button>
+<button class="stop" onclick="stop()">⏹ Dừng</button>
 
 <script>
-async function translateText() {
-    const text = document.getElementById("inputText").value;
-    const source = document.getElementById("sourceLang").value;
-    const target = document.getElementById("targetLang").value;
+const synth = window.speechSynthesis;
+const voiceSelect = document.getElementById("voiceSelect");
 
-    if (!text.trim()) {
-        alert("Nhập text cần dịch!");
-        return;
-    }
+function loadVoices() {
+  const voices = synth.getVoices();
+  voiceSelect.innerHTML = "";
+  voices.forEach((voice, i) => {
+    const option = document.createElement("option");
+    option.value = i;
+    option.textContent = voice.name + " - " + voice.lang;
+    voiceSelect.appendChild(option);
+  });
+}
 
-    document.getElementById("outputText").value = "Đang dịch...";
+speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
 
-    try {
-        const res = await fetch("https://libretranslate.de/translate", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                q: text,
-                source: source,
-                target: target,
-                format: "text"
-            })
-        });
+function speak() {
+  const text = document.getElementById("text").value;
+  if (!text) return;
 
-        const data = await res.json();
-        document.getElementById("outputText").value = data.translatedText;
+  const utter = new SpeechSynthesisUtterance(text);
+  const voices = synth.getVoices();
 
-    } catch (err) {
-        document.getElementById("outputText").value = "Lỗi khi dịch!";
-        console.error(err);
-    }
+  utter.voice = voices[voiceSelect.value];
+  utter.rate = parseFloat(document.getElementById("rate").value);
+  utter.pitch = parseFloat(document.getElementById("pitch").value);
+
+  synth.speak(utter);
+}
+
+function stop() {
+  synth.cancel();
 }
 </script>
 
 </body>
-  </html>
+</html>
